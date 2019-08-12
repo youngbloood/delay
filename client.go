@@ -132,6 +132,9 @@ RETRY:
 }
 
 func (d *Client) HandleSync(queue <-chan *PopResp) {
+	if d.Handle == nil {
+		panic("handle func is nil !")
+	}
 	for pr := range queue {
 		if err := d.Handle(pr); err != nil {
 			continue
@@ -141,6 +144,9 @@ func (d *Client) HandleSync(queue <-chan *PopResp) {
 }
 
 func (d *Client) HandleAsync(queue <-chan *PopResp) {
+	if d.Handle == nil {
+		panic("handle func is nil !")
+	}
 	for pr := range queue {
 		go func(pr *PopResp) {
 			if err := d.Handle(pr); err != nil {
