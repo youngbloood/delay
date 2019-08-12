@@ -6,19 +6,21 @@ import (
 )
 
 type Client struct {
-	Host      string
+	host      string
 	htpClient *http.Client
+
+	Handle func(*PopResp) error
 }
 
 func NewClient(host string) *Client {
 	return &Client{
-		Host:      host,
+		host:      host,
 		htpClient: &http.Client{},
 	}
 }
 
 func (d *Client) Push(req *Req) error {
-	htpResp, err := d.htpClient.Post(d.Host+"/push", "application/json", req.Read())
+	htpResp, err := d.htpClient.Post(d.host+"/push", "application/json", req.Read())
 	if err != nil {
 		return err
 	}
@@ -40,7 +42,7 @@ func (d *Client) Pop(topic string) (pr *PopResp, err error) {
 		Topic: topic,
 	}
 
-	htpResp, err := d.htpClient.Post(d.Host+"/pop", "application/json", req.Read())
+	htpResp, err := d.htpClient.Post(d.host+"/pop", "application/json", req.Read())
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +65,7 @@ func (d *Client) Delete(id string) (*Req, error) {
 		Id: id,
 	}
 
-	htpResp, err := d.htpClient.Post(d.Host+"/delete", "application/json", req.Read())
+	htpResp, err := d.htpClient.Post(d.host+"/delete", "application/json", req.Read())
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +86,7 @@ func (d *Client) Finish(id string) error {
 	req := &Req{
 		Id: id,
 	}
-	htpResp, err := d.htpClient.Post(d.Host+"/finish", "application/json", req.Read())
+	htpResp, err := d.htpClient.Post(d.host+"/finish", "application/json", req.Read())
 	if err != nil {
 		return err
 	}
@@ -102,7 +104,7 @@ func (d *Client) Get(id string) (*Req, error) {
 		Id: id,
 	}
 
-	htpResp, err := d.htpClient.Post(d.Host+"/get", "application/json", req.Read())
+	htpResp, err := d.htpClient.Post(d.host+"/get", "application/json", req.Read())
 	if err != nil {
 		return nil, err
 	}
@@ -127,4 +129,24 @@ RETRY:
 	}
 	queue <- req
 	goto RETRY
+}
+
+func (d *Client) HandleSync(queue <-chan *PopResp) {
+	for pr := range queue {
+		if err := d.Handle(pr); err != nil {
+			continue
+		}
+		d.Finish(pr.Id)
+	}
+}
+
+func (d *Client) HandleAsync(queue <-chan *PopResp) {
+	for pr := range queue {
+		go func(pr *PopResp) {
+			if err := d.Handle(pr); err != nil {
+				return
+			}
+			d.Finish(pr.Id)
+		}(pr)
+	}
 }
