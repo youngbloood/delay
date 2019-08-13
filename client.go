@@ -123,11 +123,10 @@ func (d *Client) Get(id string) (*Req, error) {
 
 func (d *Client) RoundPop(topic string, queue chan<- *PopResp) error {
 RETRY:
-	req, err := d.Pop(topic)
-	if err != nil {
-		goto RETRY
+	resp, _ := d.Pop(topic)
+	if resp!=nil{
+		queue <- resp
 	}
-	queue <- req
 	goto RETRY
 }
 
