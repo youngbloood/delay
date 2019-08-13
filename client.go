@@ -1,6 +1,7 @@
 package delay
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -8,8 +9,8 @@ import (
 type Client struct {
 	host      string
 	htpClient *http.Client
-
-	Handle func(*PopResp) error
+	// topic:handle
+	HandleMap map[string]func(*PopResp) error
 }
 
 func NewClient(host string) *Client {
@@ -124,31 +125,34 @@ func (d *Client) Get(id string) (*Req, error) {
 func (d *Client) RoundPop(topic string, queue chan<- *PopResp) error {
 RETRY:
 	resp, _ := d.Pop(topic)
-	if resp!=nil{
+	if resp != nil {
 		queue <- resp
 	}
 	goto RETRY
 }
 
-func (d *Client) HandleSync(queue <-chan *PopResp) {
-	if d.Handle == nil {
-		panic("handle func is nil !")
+func (d *Client) HandleSync(topic string, queue <-chan *PopResp) {
+	handle, ok := d.HandleMap[topic]
+	if !ok || handle == nil {
+		panic(fmt.Sprintf("handle[%s] func is nil !", topic))
 	}
+
 	for pr := range queue {
-		if err := d.Handle(pr); err != nil {
+		if err := handle(pr); err != nil {
 			continue
 		}
 		d.Finish(pr.Id)
 	}
 }
 
-func (d *Client) HandleAsync(queue <-chan *PopResp) {
-	if d.Handle == nil {
-		panic("handle func is nil !")
+func (d *Client) HandleAsync(topic string, queue <-chan *PopResp) {
+	handle, ok := d.HandleMap[topic]
+	if !ok || handle == nil {
+		panic(fmt.Sprintf("handle[%s] func is nil !", topic))
 	}
 	for pr := range queue {
 		go func(pr *PopResp) {
-			if err := d.Handle(pr); err != nil {
+			if err := handle(pr); err != nil {
 				return
 			}
 			d.Finish(pr.Id)
