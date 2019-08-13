@@ -150,6 +150,7 @@ func (d *Client) HandleAsync(topic string, queue <-chan *PopResp) {
 	if !ok || handle == nil {
 		panic(fmt.Sprintf("handle[%s] func is nil !", topic))
 	}
+
 	for pr := range queue {
 		go func(pr *PopResp) {
 			if err := handle(pr); err != nil {
