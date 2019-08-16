@@ -132,6 +132,12 @@ RETRY:
 }
 
 func (d *Client) HandleSync(topic string, queue <-chan *PopResp) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+
 	handle, ok := d.HandleMap[topic]
 	if !ok || handle == nil {
 		panic(fmt.Sprintf("handle[%s] func is nil !", topic))
@@ -153,6 +159,12 @@ func (d *Client) HandleAsync(topic string, queue <-chan *PopResp) {
 
 	for pr := range queue {
 		go func(pr *PopResp) {
+			defer func() {
+				if err := recover(); err != nil {
+					fmt.Println(err)
+				}
+			}()
+
 			if err := handle(pr); err != nil {
 				return
 			}
