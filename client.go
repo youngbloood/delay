@@ -17,6 +17,7 @@ func NewClient(host string) *Client {
 	return &Client{
 		host:      host,
 		htpClient: &http.Client{},
+		HandleMap: make(map[string]func(*PopResp) error, 0),
 	}
 }
 
