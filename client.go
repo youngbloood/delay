@@ -21,6 +21,10 @@ func NewClient(host string) *Client {
 	}
 }
 
+func (d *Client) SetClient(client *http.Client) {
+	d.htpClient = client
+}
+
 func (d *Client) Push(req *Req) error {
 	htpResp, err := d.htpClient.Post(d.host+"/push", "application/json", req.Read())
 	if err != nil {
