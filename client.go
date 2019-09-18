@@ -3,6 +3,7 @@ package delay
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -150,6 +151,7 @@ func (d *Client) HandleSync(topic string, queue <-chan *PopResp) {
 
 	for pr := range queue {
 		if err := handle(pr); err != nil {
+			log.Println("sync handle message err = ", err)
 			continue
 		}
 		d.Finish(pr.Id)
@@ -166,11 +168,12 @@ func (d *Client) HandleAsync(topic string, queue <-chan *PopResp) {
 		go func(pr *PopResp) {
 			defer func() {
 				if err := recover(); err != nil {
-					fmt.Println(err)
+					log.Println("recover() err = ", err)
 				}
 			}()
 
 			if err := handle(pr); err != nil {
+				log.Println("handle message err = ", err)
 				return
 			}
 			d.Finish(pr.Id)
