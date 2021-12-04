@@ -26,21 +26,21 @@ func (d *Client) SetClient(client *http.Client) {
 	d.htpClient = client
 }
 
-func (d *Client) Push(req *Req) error {
+func (d *Client) Push(req *Req) (*Resp, error) {
 	htpResp, err := d.htpClient.Post(d.host+"/push", "application/json", req.Read())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer htpResp.Body.Close()
 	bts, err := ioutil.ReadAll(htpResp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp := new(Resp)
 	if err = resp.Unmarshal(bts); err != nil {
-		return err
+		return nil, err
 	}
-	return resp.GetError()
+	return resp, resp.GetError()
 }
 
 func (d *Client) Pop(topic string) (pr *PopResp, err error) {
@@ -130,14 +130,17 @@ func (d *Client) Get(id string) (*Req, error) {
 
 func (d *Client) RoundPop(topic string, queue chan<- *PopResp) error {
 RETRY:
-	resp, _ := d.Pop(topic)
+	resp, err := d.Pop(topic)
+	if err != nil {
+		return err
+	}
 	if resp != nil {
 		queue <- resp
 	}
 	goto RETRY
 }
 
-func (d *Client) HandleSync(topic string, queue <-chan *PopResp) {
+func (d *Client) HandleSync(topic string, queue <-chan *PopResp) error {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -154,8 +157,11 @@ func (d *Client) HandleSync(topic string, queue <-chan *PopResp) {
 			log.Println("sync handle message err = ", err)
 			continue
 		}
-		d.Finish(pr.Id)
+		if err := d.Finish(pr.Id); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (d *Client) HandleAsync(topic string, queue <-chan *PopResp) {
